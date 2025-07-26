@@ -43,7 +43,37 @@ const builderSteps = [
         name: "ethnicity",
         type: "select",
         options: [
-          "Caucasian", "African", "East Asian", "South Asian", "Latino", "Middle Eastern", "Native American", "Pacific Islander", "Mixed", "Other"
+          "Caucasian",
+          "African",
+          "East Asian",
+          "South Asian",
+          "Latino",
+          "Middle Eastern",
+          "Native American",
+          "Pacific Islander",
+          "Mixed",
+          "Hispanic",
+          "Southeast Asian",
+          "Central Asian",
+          "North African",
+          "Caribbean",
+          "Aboriginal Australian",
+          "Maori",
+          "Inuit",
+          "Jewish",
+          "Romani",
+          "Slavic",
+          "Mediterranean",
+          "Arab",
+          "Persian",
+          "Turkish",
+          "Korean",
+          "Filipino",
+          "Thai",
+          "Vietnamese",
+          "Brazilian",
+          "Polynesian",
+          "Other"
         ],
         required: false
       }
@@ -367,65 +397,116 @@ if (backgroundSelect && backgroundCustom) {
 }
 
 function getPromptJson() {
-  // Gather all data into a JSON object
+  // Gather all data into a JSON object in logical order for image generation
   let json = {};
-  json.subjectType = builderData.subjectType || "";
-  json.age = builderData.age || "";
-  json.skinTone = builderData.skinTone || "";
-  json.ethnicity = builderData.ethnicity || "";
-  json.eyeColor = builderData.eyeColor || "";
-  json.breastSize = builderData.breastSize || "";
-  json.hairType = builderData.hairType || "";
-  json.hairColor = builderData.hairColor || "";
-  json.outfit = builderData.outfit || {};
+
+  // 1. Main subject
+  json.subject = {
+    type: builderData.subjectType || "",
+    age: builderData.age || "",
+    ethnicity: builderData.ethnicity || "",
+    skinTone: builderData.skinTone || ""
+  };
+
+  // 2. Character details
+  json.character = {
+    hair: {
+      type: builderData.hairType || "",
+      color: builderData.hairColor || ""
+    },
+    eyes: builderData.eyeColor || "",
+    breastSize: (builderData.subjectType === "Girl" ? (builderData.breastSize || "") : "")
+  };
+
+  // 3. Outfit (ordered)
+  const outfitOrder = ["undergarments", "shirt", "bottom", "shoes", "hat", "accessories"];
+  json.outfit = {};
+  if (builderData.outfit) {
+    for (const part of outfitOrder) {
+      if (builderData.outfit[part]) {
+        let items = builderData.outfit[part].map(x => x.startsWith("custom:") ? x.replace("custom:", "") : x)
+          .filter(x => x && x !== "Other" && x !== "No Hat" && x !== "None");
+        if (items.length) {
+          json.outfit[part] = items;
+        }
+      }
+    }
+  }
+
+  // 4. Style
   json.style = promptOptionsForm.style.value || "";
+
+  // 5. Background
   json.background = (promptOptionsForm.background.value === "Other" ? promptOptionsForm.backgroundCustom.value : promptOptionsForm.background.value) || "";
-  json.cameraAngle = promptOptionsForm.cameraAngle.value || "";
-  json.lighting = promptOptionsForm.lighting.value || "";
-  json.mood = promptOptionsForm.mood.value || "";
+
+  // 6. Camera, lighting, mood
+  json.camera = {
+    angle: promptOptionsForm.cameraAngle.value || "",
+    lighting: promptOptionsForm.lighting.value || "",
+    mood: promptOptionsForm.mood.value || ""
+  };
+
+  // 7. Artist/influence
   json.artist = promptOptionsForm.artist.value || "";
-  json.artMedium = promptOptionsForm.artMedium.value || "";
-  json.colorPalette = promptOptionsForm.colorPalette.value || "";
-  json.brushStyle = promptOptionsForm.brushStyle.value || "";
-  json.texture = promptOptionsForm.texture.value || "";
+
+  // 8. Artistic options
+  json.art = {
+    medium: promptOptionsForm.artMedium.value || "",
+    colorPalette: promptOptionsForm.colorPalette.value || "",
+    brushStyle: promptOptionsForm.brushStyle.value || "",
+    texture: promptOptionsForm.texture.value || ""
+  };
+
+  // 9. Extra
   json.extra = promptOptionsForm.extra.value || "";
+
   return json;
 }
 
 function getPromptText() {
   let prompt = [];
-  // Subject
-  if (builderData.subjectType) {
-    let subject = builderData.subjectType;
-    if (builderData.age) subject = builderData.age + " year old " + subject.toLowerCase();
-    if (builderData.skinTone) subject = builderData.skinTone.toLowerCase() + " " + subject;
-    if (builderData.ethnicity) subject = builderData.ethnicity + " " + subject;
-    prompt.push(subject);
-  }
-  // Character details
+
+  // 1. Main subject (type, gender, age, ethnicity, skin tone)
+  let subjectParts = [];
+  if (builderData.subjectType) subjectParts.push(builderData.subjectType);
+  if (builderData.age) subjectParts.unshift(builderData.age + " year old");
+  if (builderData.ethnicity) subjectParts.push(builderData.ethnicity);
+  if (builderData.skinTone) subjectParts.push(builderData.skinTone + " skin");
+  let subject = subjectParts.filter(Boolean).join(" ");
+  if (subject) prompt.push(subject);
+
+  // 2. Hair (type, color)
+  let hair = [];
+  if (builderData.hairType) hair.push(builderData.hairType);
+  if (builderData.hairColor) hair.push(builderData.hairColor);
+  if (hair.length) prompt.push(hair.join(" ") + " hair");
+
+  // 3. Eyes
   if (builderData.eyeColor) prompt.push(builderData.eyeColor + " eyes");
+
+  // 4. Breast size (if girl)
   if (builderData.breastSize && builderData.subjectType === "Girl") prompt.push(builderData.breastSize + " breasts");
-  if (builderData.hairType || builderData.hairColor) {
-    let hair = [];
-    if (builderData.hairType) hair.push(builderData.hairType);
-    if (builderData.hairColor) hair.push(builderData.hairColor);
-    prompt.push(hair.join(" ") + " hair");
-  }
-  // Outfit
+
+  // 5. Outfit (in logical order: undergarments, shirt, bottom, shoes, hat, accessories)
   if (builderData.outfit) {
-    for (const part of Object.keys(builderData.outfit)) {
-      let items = builderData.outfit[part].map(x => x.startsWith("custom:") ? x.replace("custom:", "") : x)
-        .filter(x => x && x !== "Other" && x !== "No Hat" && x !== "None");
-      if (items.length) {
-        let label = part === "bottom" ? "bottom wear" : part;
-        prompt.push(items.join(", ") + " " + label);
+    const outfitOrder = ["undergarments", "shirt", "bottom", "shoes", "hat", "accessories"];
+    for (const part of outfitOrder) {
+      if (builderData.outfit[part]) {
+        let items = builderData.outfit[part].map(x => x.startsWith("custom:") ? x.replace("custom:", "") : x)
+          .filter(x => x && x !== "Other" && x !== "No Hat" && x !== "None");
+        if (items.length) {
+          let label = part === "bottom" ? "bottom wear" : part;
+          prompt.push(items.join(", ") + " " + label);
+        }
       }
     }
   }
-  // Prompt options
+
+  // 6. Style
   const style = promptOptionsForm.style.value;
   if (style && style !== "Other") prompt.push(style + " style");
-  // Background
+
+  // 7. Background
   let background = "";
   if (promptOptionsForm.background.value === "Other") {
     background = promptOptionsForm.backgroundCustom.value;
@@ -433,15 +514,20 @@ function getPromptText() {
     background = promptOptionsForm.background.value;
   }
   if (background) prompt.push("background: " + background);
+
+  // 8. Camera, lighting, mood
   const cameraAngle = promptOptionsForm.cameraAngle.value;
   if (cameraAngle && cameraAngle !== "Other") prompt.push("camera angle: " + cameraAngle);
   const lighting = promptOptionsForm.lighting.value;
   if (lighting && lighting !== "Other") prompt.push("lighting: " + lighting);
   const mood = promptOptionsForm.mood.value;
   if (mood && mood !== "Other") prompt.push("mood: " + mood);
+
+  // 9. Artist/influence
   const artist = promptOptionsForm.artist.value;
   if (artist) prompt.push("inspired by " + artist);
-  // Artistic options
+
+  // 10. Artistic options
   const artMedium = promptOptionsForm.artMedium.value;
   if (artMedium && artMedium !== "Other") prompt.push("medium: " + artMedium);
   const colorPalette = promptOptionsForm.colorPalette.value;
@@ -450,6 +536,8 @@ function getPromptText() {
   if (brushStyle && brushStyle !== "Other") prompt.push("brush style: " + brushStyle);
   const texture = promptOptionsForm.texture.value;
   if (texture && texture !== "Other") prompt.push("texture: " + texture);
+
+  // 11. Extra
   const extra = promptOptionsForm.extra.value;
   if (extra) prompt.push(extra);
 
