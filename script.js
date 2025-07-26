@@ -418,7 +418,10 @@ function getPromptJson() {
     breastSize: (builderData.subjectType === "Girl" ? (builderData.breastSize || "") : "")
   };
 
-  // 3. Outfit (ordered)
+  // 3. Action
+  json.action = (promptOptionsForm.action && promptOptionsForm.action.value) || "";
+
+  // 4. Outfit (ordered)
   const outfitOrder = ["undergarments", "shirt", "bottom", "shoes", "hat", "accessories"];
   json.outfit = {};
   if (builderData.outfit) {
@@ -433,23 +436,23 @@ function getPromptJson() {
     }
   }
 
-  // 4. Style
+  // 5. Style
   json.style = promptOptionsForm.style.value || "";
 
-  // 5. Background
+  // 6. Background
   json.background = (promptOptionsForm.background.value === "Other" ? promptOptionsForm.backgroundCustom.value : promptOptionsForm.background.value) || "";
 
-  // 6. Camera, lighting, mood
+  // 7. Camera, lighting, mood
   json.camera = {
     angle: promptOptionsForm.cameraAngle.value || "",
     lighting: promptOptionsForm.lighting.value || "",
     mood: promptOptionsForm.mood.value || ""
   };
 
-  // 7. Artist/influence
+  // 8. Artist/influence
   json.artist = promptOptionsForm.artist.value || "";
 
-  // 8. Artistic options
+  // 9. Artistic options
   json.art = {
     medium: promptOptionsForm.artMedium.value || "",
     colorPalette: promptOptionsForm.colorPalette.value || "",
@@ -457,7 +460,7 @@ function getPromptJson() {
     texture: promptOptionsForm.texture.value || ""
   };
 
-  // 9. Extra
+  // 10. Extra
   json.extra = promptOptionsForm.extra.value || "";
 
   return json;
